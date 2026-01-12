@@ -1,0 +1,34 @@
+# IDE Settings
+.idea/
+.eclipse/
+.classpath
+.project
+
+# Build Files
+target/
+out/
+
+# System Files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Dependency Directories
+bower_components/
+node_modules/
+.env
+
+# Build Tools
+.gradle/
+.m2/
+
+# Testing
+test-reports/
+coverage/
+
+# Temporary Files
+*.swp
+*.tmp
+*~
+.\#*
+

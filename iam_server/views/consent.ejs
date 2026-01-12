@@ -1,0 +1,31 @@
+<h1>Consent Required</h1>
+<p>The application <strong>
+        <%= client.name %>
+    </strong> wants to access your account.</p>
+
+<form action="/oauth/authorize/decision" method="POST">
+    <% if (scopes && scopes.length> 0) { %>
+        <div style="background: #f4f4f4; padding: 10px; margin: 10px 0; border: 1px solid #ddd;">
+            <p><strong>It is requesting permission to:</strong></p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <% scopes.forEach(function(scope) { %>
+                    <label style="cursor: pointer;">
+                        <input type="checkbox" name="scopes" value="<%= scope %>" checked>
+                        <%= scope %>
+                    </label>
+                    <% }); %>
+            </div>
+        </div>
+        <% } %>
+
+            <input type="hidden" name="transaction_id" value="<%= transactionID %>">
+            <input type="hidden" name="client_id" value="<%= client.clientId %>">
+
+            <!-- In our simplified flow, we might just use query params or session to persist state, 
+         but passing through hidden fields is a common pattern too. 
+         For this specific simplified logic, we'll assume the session holds the pending request or we verify parameters again.
+    -->
+
+            <button type="submit" name="allow" value="true">Allow</button>
+            <button type="submit" name="allow" value="false" style="background-color: #dc3545;">Deny</button>
+</form>

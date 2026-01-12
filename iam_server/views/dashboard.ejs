@@ -1,0 +1,187 @@
+<%- include('layout', { title: 'Dashboard' , body: '' , user: user }) %>
+
+    <div style="max-width: 800px; margin: 0 auto;">
+        <h2>Welcome, <%= user.username %>
+        </h2>
+        <p><strong>Access Token:</strong> <span style="font-family: monospace; font-size: 0.8em;">
+                <%= accessToken.substring(0, 20) %>...
+            </span></p>
+
+        <div style="display: flex; gap: 20px; margin-top: 20px;">
+            <!-- File List -->
+            <div style="flex: 2;">
+                <h3>Your Files</h3>
+                <% if (files && files.length> 0) { %>
+                    <ul style="list-style: none; padding: 0;">
+                        <% files.forEach(function(file) { %>
+                            <li
+                                style="background: #fff; border: 1px solid #ddd; margin-bottom: 10px; padding: 15px; border-radius: 5px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong>
+                                            <%= file.name %>
+                                        </strong> <br>
+                                        <small style="color: #666;">
+                                            <%= file.type %>
+                                        </small>
+                                        <% if (file.owner !==user.user_id && file.owner !==user.sub) { %>
+                                            <span
+                                                style="background: #ffc107; padding: 2px 5px; border-radius: 3px; font-size: 0.8em; margin-left: 5px;">Shared
+                                                with you</span>
+                                            <% } %>
+                                    </div>
+                                </div>
+
+                                <!-- Share Form (Only if owner) -->
+                                <!-- Note: Comparing IDs strictly might be tricky with ObjectId vs String, ensuring rough equality -->
+                                <% if (file.owner==user.user_id || file.owner==user.sub) { %>
+                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+                                        <form onsubmit="shareFile(event, '<%= file._id %>')"
+                                            style="display: flex; gap: 5px;">
+                                            <input type="text" id="share-<%= file._id %>"
+                                                placeholder="Username to share with" required
+                                                style="padding: 5px; flex: 1;">
+                                            <button type="submit"
+                                                style="padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Share</button>
+                                        </form>
+                                        <div id="msg-<%= file._id %>" style="font-size: 0.8em; margin-top: 5px;"></div>
+
+                                        <!-- Shared With List -->
+                                        <% if (file.sharedWith && file.sharedWith.length> 0) { %>
+                                            <div style="margin-top: 15px;">
+                                                <small style="font-weight: bold; color: #555;">Shared with:</small>
+                                                <ul style="padding-left: 0; list-style: none; margin-top: 5px;">
+                                                    <% file.sharedWith.forEach(function(sharedUser) { %>
+                                                        <li
+                                                            style="display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; padding: 5px 10px; margin-bottom: 5px; border-radius: 3px; font-size: 0.9em;">
+                                                            <span>
+                                                                <%= sharedUser.username %>
+                                                            </span>
+                                                            <button
+                                                                onclick="revokeAccess('<%= file._id %>', '<%= sharedUser.username %>')"
+                                                                style="color: red; border: none; background: none; cursor: pointer; font-weight: bold;">
+                                                                &times; Remove
+                                                            </button>
+                                                        </li>
+                                                        <% }); %>
+                                                </ul>
+                                            </div>
+                                            <% } %>
+                                    </div>
+                                    <% } %>
+                            </li>
+                            <% }); %>
+                    </ul>
+                    <% } else { %>
+                        <p>No files found.</p>
+                        <% } %>
+            </div>
+
+            <!-- Create File -->
+            <div style="flex: 1;">
+                <h3>Create New File</h3>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                    <form onsubmit="createFile(event)">
+                        <div style="margin-bottom: 10px;">
+                            <label>File Name</label>
+                            <input type="text" id="fileName" required style="width: 100%; padding: 5px;">
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <label>Content</label>
+                            <textarea id="fileContent" required
+                                style="width: 100%; padding: 5px; height: 100px;"></textarea>
+                        </div>
+                        <button type="submit"
+                            style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">Create
+                            File</button>
+                    </form>
+                    <div id="createMsg" style="margin-top: 10px; font-size: 0.9em;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const accessToken = '<%= accessToken %>';
+
+        async function createFile(e) {
+            e.preventDefault();
+            const name = document.getElementById('fileName').value;
+            const content = document.getElementById('fileContent').value;
+
+            try {
+                const res = await fetch('/api/files', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, content, type: 'text/plain' })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    document.getElementById('createMsg').innerText = 'Error: ' + (data.error || 'Failed');
+                    document.getElementById('createMsg').style.color = 'red';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function shareFile(e, fileId) {
+            e.preventDefault();
+            const username = document.getElementById('share-' + fileId).value;
+            const msgDiv = document.getElementById('msg-' + fileId);
+
+            try {
+                const res = await fetch(`/api/files/${fileId}/share`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    msgDiv.innerText = 'Shared successfully!';
+                    msgDiv.style.color = 'green';
+                    // Reload to update list
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    msgDiv.innerText = data.error || 'Failed to share';
+                    msgDiv.style.color = 'red';
+                }
+            } catch (err) {
+                msgDiv.innerText = 'Network error';
+                msgDiv.style.color = 'red';
+            }
+        }
+
+        async function revokeAccess(fileId, username) {
+            if (!confirm('Are you sure you want to remove access for ' + username + '?')) return;
+
+            try {
+                const res = await fetch(`/api/files/${fileId}/revoke`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username })
+                });
+
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to revoke access');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network error');
+            }
+        }
+    </script>

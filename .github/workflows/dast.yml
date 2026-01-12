@@ -1,0 +1,46 @@
+name: "DAST - OWASP ZAP"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  zap_scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    name: Scan the webapplication
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # 1. Build and Run the application
+      # DAST requires the application to be running to test it.
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Start Application
+        # Run in background (&) so we can proceed to next step
+        run: |
+          npm start &
+          sleep 10 # Wait for app to start
+
+      # 2. Run ZAP Scan against the running application
+      - name: ZAP Scan
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: 'http://localhost:3000'
+          # Fail the action if High/Critical alerts are found (optional)
+          fail_action: false 
+          # You can customize rules files here if needed
+          # rules_file_name: '.zap/rules.tsv' 
+          # cmd_options: '-a' 
